@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "providers": {
+    "auggie": { "enabled": true, "weight": -0.05 },
+    "openai": { "enabled": true, "weight": 0.0 },
+    "anthropic": { "enabled": true, "weight": 0.02 }
+  },
+  "defaults": {
+    "licensed": "default",
+    "unlicensed": "default"
+  },
+  "classes": {
+    "default": [
+      "auggie:auto",
+      "openai:gpt-5.1",
+      "anthropic:claude-3-5-sonnet-20241022"
+    ],
+    "frontier": [
+      "auggie:sonnet4.5",
+      "openai:gpt-5.1",
+      "anthropic:claude-3-5-sonnet-20241022"
+    ],
+    "fast": [
+      "auggie:haiku4.5",
+      "openai:gpt-4o-mini",
+      "anthropic:claude-3-5-haiku-20241022"
+    ],
+    "cheap": [
+      "openai:gpt-4o-mini",
+      "anthropic:claude-3-5-haiku-20241022",
+      "auggie:haiku4.5"
+    ],
+    "long": [
+      "openai:gpt-4.1",
+      "anthropic:claude-3-5-sonnet-20241022",
+      "auggie:sonnet4.5"
+    ]
+  },
+  "legacyPreferenceMap": {
+    "sonnet4.5": { "kind": "class", "class": "frontier" },
+    "auggie sonnet 4.5": { "kind": "class", "class": "frontier" },
+    "haiku4.5": { "kind": "class", "class": "fast" },
+    "auggie haiku 4.5": { "kind": "class", "class": "fast" },
+    "gpt5": { "kind": "explicit", "model": "auggie:gpt5" },
+    "gpt-5.1": { "kind": "explicit", "model": "openai:gpt-5.1" }
+  },
+  "models": {
+    "auggie:auto": {
+      "reasoning": 0.85,
+      "latency": 0.7,
+      "cost": 0.6,
+      "contextTokens": 200000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "frontier"]
+    },
+    "auggie:sonnet4.5": {
+      "reasoning": 0.95,
+      "latency": 0.65,
+      "cost": 0.5,
+      "contextTokens": 200000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "frontier"]
+    },
+    "auggie:haiku4.5": {
+      "reasoning": 0.6,
+      "latency": 0.95,
+      "cost": 0.8,
+      "contextTokens": 128000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "fast"]
+    },
+    "auggie:sonnet4": {
+      "reasoning": 0.85,
+      "latency": 0.7,
+      "cost": 0.6,
+      "contextTokens": 128000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision"]
+    },
+    "auggie:gpt5": {
+      "reasoning": 0.95,
+      "latency": 0.6,
+      "cost": 0.35,
+      "contextTokens": 200000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "frontier"]
+    },
+    "openai:gpt-5.1": {
+      "reasoning": 0.95,
+      "latency": 0.65,
+      "cost": 0.35,
+      "contextTokens": 200000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "frontier"]
+    },
+    "openai:gpt-4.1": {
+      "reasoning": 0.85,
+      "latency": 0.7,
+      "cost": 0.5,
+      "contextTokens": 128000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "long"]
+    },
+    "openai:gpt-4o-mini": {
+      "reasoning": 0.55,
+      "latency": 0.95,
+      "cost": 0.95,
+      "contextTokens": 128000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "fast", "cheap"]
+    },
+    "anthropic:claude-3-5-sonnet-20241022": {
+      "reasoning": 0.9,
+      "latency": 0.65,
+      "cost": 0.45,
+      "contextTokens": 200000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "frontier"]
+    },
+    "anthropic:claude-3-5-haiku-20241022": {
+      "reasoning": 0.55,
+      "latency": 0.9,
+      "cost": 0.9,
+      "contextTokens": 200000,
+      "tools": true,
+      "vision": true,
+      "tags": ["tools", "vision", "fast", "cheap"]
+    }
+  }
+}
+
