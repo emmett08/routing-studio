@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Routing Studio: Run Extension (Build)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--disable-extensions",
+        "${workspaceFolder}"
+      ],
+      "outFiles": ["${workspaceFolder}/dist/extension/**/*.cjs"],
+      "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Routing Studio: Run Extension (Watch)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--disable-extensions",
+        "${workspaceFolder}"
+      ],
+      "outFiles": ["${workspaceFolder}/dist/extension/**/*.cjs"],
+      "preLaunchTask": "watch"
+    }
+  ]
+}

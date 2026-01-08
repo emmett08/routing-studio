@@ -1,119 +1,128 @@
-import React, { useCallback, useState } from "react";
+import React, { useMemo } from "react";
 import type { RoutingFileV1 } from "../routing/types";
-import { Help, InlineCode, SectionTitle } from "./components";
+import { InlineCode, OverflowMenu, ViewHeader } from "./components";
 
 export function Overview({
   routing,
   fileName,
-  openFile,
+  fileUri,
+  dirty,
+  status,
+  fileNameEditable,
+  setFileName,
+  onOpen,
+  onNew,
+  onSave,
+  onExport,
+  onValidate,
+  onShowOutput,
+  onCopyJson,
 }: {
   routing: RoutingFileV1;
   fileName: string;
-  openFile: (file: File) => void;
+  fileUri?: string | null;
+  dirty: boolean;
+  status: { errors: number; warnings: number };
+  fileNameEditable: boolean;
+  setFileName: (v: string) => void;
+  onOpen: () => void;
+  onNew: () => void;
+  onSave: () => void;
+  onExport?: () => void;
+  onValidate?: () => void;
+  onShowOutput?: () => void;
+  onCopyJson: () => void;
 }) {
-  const [dragOver, setDragOver] = useState(false);
+  const providerCount = useMemo(() => Object.keys(routing.providers ?? {}).length, [routing.providers]);
+  const modelCount = useMemo(() => Object.keys(routing.models ?? {}).length, [routing.models]);
+  const classCount = useMemo(() => Object.keys(routing.classes ?? {}).length, [routing.classes]);
 
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      const f = e.dataTransfer.files?.[0];
-      if (!f) return;
-      openFile(f);
-    },
-    [openFile],
-  );
-
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  }, []);
-
-  const onDragLeave = useCallback(() => setDragOver(false), []);
-
-  const providerCount = Object.keys(routing.providers ?? {}).length;
-  const modelCount = Object.keys(routing.models ?? {}).length;
-  const classCount = Object.keys(routing.classes ?? {}).length;
+  const validationSummary =
+    status.errors > 0
+      ? `${status.errors} error${status.errors === 1 ? "" : "s"}`
+      : status.warnings > 0
+        ? `${status.warnings} warning${status.warnings === 1 ? "" : "s"}`
+        : "0 issues";
 
   return (
-    <div className="panel">
-      <SectionTitle
+    <section className="view" aria-label="Overview">
+      <ViewHeader
         title="Overview"
-        subtitle="A guided, local-first editor for your routing JSON."
+        subtitle="File lifecycle and status summary."
+        actions={
+          <>
+            <button type="button" className="button button-primary" onClick={onOpen}>
+              Open file…
+            </button>
+            <OverflowMenu
+              items={[
+                { label: "New", onSelect: onNew },
+                { label: "Save", onSelect: onSave },
+                ...(onExport ? [{ label: "Export…", onSelect: onExport }] : []),
+                ...(onValidate ? [{ label: "Validate", onSelect: onValidate }] : []),
+                { label: "Copy JSON", onSelect: onCopyJson },
+                ...(onShowOutput ? [{ label: "Show output", onSelect: onShowOutput }] : []),
+              ]}
+            />
+          </>
+        }
       />
-      <div className="body">
-        <div
-          className="dropzone"
-          style={{
-            borderStyle: dragOver ? "solid" : "dashed",
-            borderColor: dragOver ? "rgba(94,234,212,0.6)" : undefined,
-          }}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          role="group"
-          aria-label="Drop a routing file to open"
-        >
-          <strong>Drag & drop a routing file to open</strong>
-          <div className="muted">
-            Drop any <InlineCode>*.routing.json</InlineCode> or plain{" "}
-            <InlineCode>.json</InlineCode> file here to prepopulate.
+
+      <div className="view-body">
+        <div className="kv-grid" role="list" aria-label="File status">
+          <div className="kv-row" role="listitem">
+            <div className="kv-key">File</div>
+            <div className="kv-value">
+              {fileNameEditable ? (
+                <input
+                  value={fileName}
+                  onChange={(e) => setFileName(e.target.value)}
+                  className="input"
+                  aria-label="File name"
+                />
+              ) : (
+                <span className="mono">{fileName}</span>
+              )}
+              {fileUri === null ? (
+                <span className="dirty-indicator">• Not saved yet</span>
+              ) : dirty ? (
+                <span className="dirty-indicator">• Unsaved changes</span>
+              ) : null}
+              {fileUri ? <div className="muted mono">{fileUri}</div> : null}
+            </div>
+          </div>
+
+          <div className="kv-row" role="listitem">
+            <div className="kv-key">Validation</div>
+            <div className="kv-value">{validationSummary}</div>
+          </div>
+
+          <div className="kv-row" role="listitem">
+            <div className="kv-key">Contents</div>
+            <div className="kv-value">
+              Providers: {providerCount} • Models: {modelCount} • Classes: {classCount}
+            </div>
+          </div>
+
+          <div className="kv-row" role="listitem">
+            <div className="kv-key">Defaults</div>
+            <div className="kv-value">
+              {routing.defaults?.licensed}/{routing.defaults?.unlicensed}
+            </div>
+          </div>
+
+          <div className="kv-row" role="listitem">
+            <div className="kv-key">Version</div>
+            <div className="kv-value">
+              <InlineCode>{String(routing.version)}</InlineCode>
+            </div>
           </div>
         </div>
 
-        <div className="hr" />
-
-        <div className="split">
-          <div className="card">
-            <div className="small">Current file</div>
-            <div style={{ fontSize: 14, marginTop: 4 }}>
-              <span className="mono">{fileName}</span>
-            </div>
-            <div className="small" style={{ marginTop: 6 }}>
-              Version: <InlineCode>{String(routing.version)}</InlineCode>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="small">Contents</div>
-            <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span className="pill">Providers: {providerCount}</span>
-              <span className="pill">Models: {modelCount}</span>
-              <span className="pill">Classes: {classCount}</span>
-              <span className="pill">
-                Defaults: {routing.defaults?.licensed}/{routing.defaults?.unlicensed}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="hr" />
-
-        <Help>
-          <div>
-            The UI treats <strong>classes</strong> as the user-configurable “categories”
-            (e.g. <InlineCode>frontier</InlineCode>, <InlineCode>cheap</InlineCode>). You can
-            rename, add, delete, and attach rules that keep classes discoverable as you add new
-            models.
-          </div>
-        </Help>
-
-        <div className="hr" />
-
-        <div className="small">
-          UX notes:
-          <ul>
-            <li>
-              The editor preserves unknown fields in your JSON so you can evolve the schema
-              without losing data.
-            </li>
-            <li>
-              “UI config” is stored in <InlineCode>localStorage</InlineCode> by default so it
-              won’t break strict consumers of your routing file.
-            </li>
-          </ul>
+        <div className="hint">
+          Routing JSON is the output artefact. The editor updates it deterministically and preserves unknown fields.
         </div>
       </div>
-    </div>
+    </section>
   );
 }

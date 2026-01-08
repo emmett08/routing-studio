@@ -1,25 +1,23 @@
-# Routing Studio (React 19 + TypeScript 5+)
+# Routing Studio (VS Code Extension)
 
-A local-first UI for creating and editing a `*.routing.json` file.
+A VS Code extension that provides a guided, validated UI for creating and editing `*.routing.json` files.
 
-## Run
+## Dev (webview UI in browser)
 
 ```bash
 npm i
 npm run dev
 ```
 
-## Build
+## Build + package (VSIX)
 
 ```bash
-npm run build
-npm run preview
+npm run package
 ```
 
 ## Key UX features
 
-- Drag & drop **Open** of an existing routing file to prepopulate.
-- **Undo / Redo**.
-- Integrity validation (unknown models, missing classes, etc).
+- Guided editor with **Undo / Redo**.
+- Integrity validation (unknown models, missing classes, etc.) and Output Channel logs.
 - Class builder with **search + add**, reorder, and rule-based suggestions.
 - Extensible *UI metadata* stored separately (localStorage) to avoid breaking strict consumers.

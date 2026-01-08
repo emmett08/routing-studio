@@ -1,42 +1,49 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import type { RoutingFileV1 } from "../../routing/types";
-import { Help, InlineCode, SectionTitle } from "../components";
+import { InlineCode, ViewHeader } from "../components";
 
 export function DefaultsEditor({
   routing,
   updateRouting,
+  focusField,
+  focusRequestId,
 }: {
   routing: RoutingFileV1;
   updateRouting: (mutate: (draft: RoutingFileV1) => void, opts?: { silent?: boolean }) => void;
+  focusField?: "licensed" | "unlicensed";
+  focusRequestId?: number;
 }) {
   const classKeys = useMemo(() => Object.keys(routing.classes ?? {}).sort(), [routing.classes]);
+  const licensedRef = useRef<HTMLSelectElement | null>(null);
+  const unlicensedRef = useRef<HTMLSelectElement | null>(null);
+
+  useEffect(() => {
+    if (!focusRequestId || !focusField) return;
+    if (focusField === "licensed") licensedRef.current?.focus();
+    else unlicensedRef.current?.focus();
+  }, [focusField, focusRequestId]);
 
   return (
-    <div className="panel">
-      <SectionTitle
-        title="Defaults"
-        subtitle="What class to route to when the caller doesn't specify."
-      />
-      <div className="body">
-        <Help>
-          Defaults point at a <strong>class key</strong>. If you rename/delete classes, come back and
-          update <InlineCode>defaults</InlineCode>.
-        </Help>
+    <section className="view" aria-label="Defaults">
+      <ViewHeader title="Defaults" subtitle="Choose defaults when callers don’t specify." />
 
-        <div className="hr" />
+      <div className="view-body">
+        <div className="hint">
+          These must reference an existing class key in <InlineCode>classes</InlineCode>.
+        </div>
 
-        <div className="split">
-          <div className="card">
-            <div className="small">Licensed</div>
+        <div className="form-grid">
+          <label className="field">
+            <div className="field-label">Licensed default class</div>
             <select
+              ref={licensedRef}
               value={routing.defaults.licensed}
               onChange={(e) =>
                 updateRouting((d) => {
                   d.defaults.licensed = e.target.value;
                 })
               }
-              style={{ marginTop: 8, width: "100%" }}
-              aria-label="Licensed default class"
+              className="input"
             >
               {classKeys.map((k) => (
                 <option key={k} value={k}>
@@ -44,22 +51,24 @@ export function DefaultsEditor({
                 </option>
               ))}
               {!classKeys.includes(routing.defaults.licensed) ? (
-                <option value={routing.defaults.licensed}>{routing.defaults.licensed} (missing)</option>
+                <option value={routing.defaults.licensed}>
+                  {routing.defaults.licensed} (missing)
+                </option>
               ) : null}
             </select>
-          </div>
+          </label>
 
-          <div className="card">
-            <div className="small">Unlicensed</div>
+          <label className="field">
+            <div className="field-label">Unlicensed default class</div>
             <select
+              ref={unlicensedRef}
               value={routing.defaults.unlicensed}
               onChange={(e) =>
                 updateRouting((d) => {
                   d.defaults.unlicensed = e.target.value;
                 })
               }
-              style={{ marginTop: 8, width: "100%" }}
-              aria-label="Unlicensed default class"
+              className="input"
             >
               {classKeys.map((k) => (
                 <option key={k} value={k}>
@@ -72,16 +81,9 @@ export function DefaultsEditor({
                 </option>
               ) : null}
             </select>
-          </div>
-        </div>
-
-        <div className="hr" />
-
-        <div className="small">
-          Common pattern: set <InlineCode>licensed</InlineCode> to a higher-capability class and{" "}
-          <InlineCode>unlicensed</InlineCode> to a cheaper class.
+          </label>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

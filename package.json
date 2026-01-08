@@ -1,15 +1,95 @@
 {
-  "name": "@neuralsea/routing-studio",
-  "private": true,
+  "name": "routing-studio",
+  "displayName": "Routing Studio",
+  "description": "Guided editor for *.routing.json files (VS Code extension)",
   "version": "0.1.0",
   "type": "module",
+  "publisher": "neuralsea",
+  "icon": "media/routing-studio.svg",
+  "main": "./dist/extension/extension.cjs",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCustomEditor:routingStudio.editor",
+    "onCommand:routingStudio.open",
+    "onCommand:routingStudio.newFile",
+    "onCommand:routingStudio.validate",
+    "onCommand:routingStudio.export",
+    "onCommand:routingStudio.showOutput"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "routingStudio.open",
+        "title": "Routing Studio: Open"
+      },
+      {
+        "command": "routingStudio.newFile",
+        "title": "Routing Studio: New Routing File"
+      },
+      {
+        "command": "routingStudio.validate",
+        "title": "Routing Studio: Validate Routing File"
+      },
+      {
+        "command": "routingStudio.export",
+        "title": "Routing Studio: Export Routing File"
+      },
+      {
+        "command": "routingStudio.showOutput",
+        "title": "Routing Studio: Show Output"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "routingStudio.editor",
+        "displayName": "Routing Studio",
+        "selector": [
+          { "filenamePattern": "*.routing.json" }
+        ],
+        "priority": "default"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "routingStudio",
+          "title": "Routing Studio",
+          "icon": "media/routing-studio.svg"
+        }
+      ]
+    },
+    "views": {
+      "routingStudio": [
+        {
+          "id": "routingStudio.actions",
+          "name": "Actions",
+          "icon": "media/routing-studio.svg"
+        }
+      ]
+    }
+  },
   "scripts": {
+    "clean": "node ./scripts/clean.mjs",
     "dev": "vite",
-    "build": "vite build",
+    "build:webview": "vite build",
+    "build:extension": "node ./scripts/build-extension.mjs",
+    "watch:webview": "vite build --watch",
+    "watch:extension": "node ./scripts/build-extension.mjs --watch",
+    "build": "npm run clean && npm run build:webview && npm run build:extension",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck:webview": "tsc -p tsconfig.json --noEmit",
+    "typecheck:extension": "tsc -p tsconfig.extension.json --noEmit",
+    "typecheck": "npm run typecheck:webview && npm run typecheck:extension",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run build && vsce package --no-dependencies",
+    "vscode:prepublish": "npm run build"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.36",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.3.5"
@@ -18,7 +98,12 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.1.2",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^2.26.1",
+    "esbuild": "^0.27.2",
     "typescript": "^5.4.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.16"
   }
 }

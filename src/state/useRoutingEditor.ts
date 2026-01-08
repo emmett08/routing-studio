@@ -15,8 +15,10 @@ function stableStringify(obj: unknown): string {
 export function useRoutingEditor() {
   const history = useHistory<RoutingFileV1>(createStarterRoutingFile());
   const [fileName, setFileName] = useState<string>("starter.routing.json");
+  const [fileUri, setFileUri] = useState<string | null>(null);
   const [rawJsonDraft, setRawJsonDraft] = useState<string>(() => stableStringify(history.value));
   const [rawJsonError, setRawJsonError] = useState<string | null>(null);
+  const [baselineText, setBaselineText] = useState<string>(() => stableStringify(history.value));
 
   const [uiConfig, setUiConfig] = useState<RoutingUiConfig>(() => loadUiConfig());
 
@@ -42,6 +44,10 @@ export function useRoutingEditor() {
     setRawJsonError(null);
   }, []);
 
+  const currentText = useMemo(() => stableStringify(history.value), [history.value]);
+  const dirty = useMemo(() => currentText !== baselineText, [baselineText, currentText]);
+  const markSaved = useCallback(() => setBaselineText(currentText), [currentText]);
+
   const setRouting = useCallback(
     (next: RoutingFileV1, opts?: { silent?: boolean }) => {
       history.set(next);
@@ -65,24 +71,34 @@ export function useRoutingEditor() {
     const next = createStarterRoutingFile();
     history.reset(next);
     setFileName("starter.routing.json");
+    setFileUri(null);
     syncRawFromState(next);
+    setBaselineText(stableStringify(next));
     pushToast({ kind: "success", message: "Started a new routing file." });
   }, [history, pushToast, syncRawFromState]);
 
   const loadFromText = useCallback(
-    (text: string, name?: string) => {
+    (
+      text: string,
+      name?: string,
+      opts?: { silent?: boolean; fileUri?: string | null; markSaved?: boolean },
+    ) => {
+      setFileName(name ?? "routing.json");
+      if (opts?.fileUri !== undefined) setFileUri(opts.fileUri);
       const parsed = parseRoutingJsonText(text);
       if (!parsed.ok) {
         setRawJsonDraft(text);
         setRawJsonError(parsed.message);
-        pushToast({ kind: "error", message: parsed.message });
+        if (!opts?.silent) pushToast({ kind: "error", message: parsed.message });
         return;
       }
       const next = parsed.value as unknown as RoutingFileV1;
       history.reset(next);
-      setFileName(name ?? "routing.json");
       syncRawFromState(next);
-      pushToast({ kind: "success", message: `Loaded ${name ?? "routing.json"}.` });
+      if (opts?.markSaved) setBaselineText(stableStringify(next));
+      if (!opts?.silent) {
+        pushToast({ kind: "success", message: `Loaded ${name ?? "routing.json"}.` });
+      }
     },
     [history, pushToast, syncRawFromState],
   );
@@ -101,6 +117,7 @@ export function useRoutingEditor() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    setBaselineText(stableStringify(history.value));
     pushToast({ kind: "success", message: "Downloaded." });
   }, [fileName, history.value, pushToast]);
 
@@ -122,8 +139,13 @@ export function useRoutingEditor() {
 
   return {
     routing: history.value,
+    getJsonText: () => currentText,
     fileName,
     setFileName,
+    fileUri,
+    setFileUri,
+    dirty,
+    markSaved,
     updateRouting,
     setRouting,
     newFile,

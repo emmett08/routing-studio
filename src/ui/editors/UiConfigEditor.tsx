@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from "react";
 import type { RoutingUiConfig } from "../../routing/types";
 import { defaultUiConfig } from "../../routing/uiDefaults";
-import { Help, InlineCode, SectionTitle, SmallButton } from "../components";
+import { InlineCode, InlineAction, ViewHeader } from "../components";
+
+function stableStringify(obj: unknown): string {
+  return JSON.stringify(obj, null, 2);
+}
 
 export function UiConfigEditor({
   uiConfig,
@@ -10,217 +14,205 @@ export function UiConfigEditor({
   uiConfig: RoutingUiConfig;
   saveUi: (cfg: RoutingUiConfig, opts?: { silent?: boolean }) => void;
 }) {
-  const [draft, setDraft] = useState<string>(() => JSON.stringify(uiConfig, null, 2));
+  const [draft, setDraft] = useState<string>(() => stableStringify(uiConfig));
   const [err, setErr] = useState<string | null>(null);
 
   const metricDefs = uiConfig.metricDefinitions ?? [];
-
   const classMetaEntries = useMemo(
     () => Object.entries(uiConfig.classMeta ?? {}).sort(([a], [b]) => a.localeCompare(b)),
     [uiConfig.classMeta],
   );
 
+  const setAndPersist = (next: RoutingUiConfig, opts?: { silent?: boolean }) => {
+    saveUi(next, opts);
+    setDraft(stableStringify(next));
+  };
+
   return (
-    <div className="panel">
-      <SectionTitle
-        title="UI configuration"
-        subtitle="Local-only configuration for naming & meaning (keeps categories configurable)."
+    <section className="view" aria-label="UI semantics">
+      <ViewHeader
+        title="UI semantics"
+        subtitle="Advanced. UI only (stored locally). Not exported."
+        actions={
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setAndPersist(defaultUiConfig, { silent: false })}
+          >
+            Reset
+          </button>
+        }
       />
-      <div className="body">
-        <Help>
-          <div>
-            This configuration is stored in <InlineCode>localStorage</InlineCode> by default. It lets
-            different teams define what “Frontier”, “Cost”, “Fast”, etc mean <em>without</em> forcing
-            those semantics into the routing file.
-          </div>
-        </Help>
 
-        <div className="hr" />
-
-        <div className="split">
-          <div className="card" style={{ minHeight: 420 }}>
-            <div className="small">Metric labels (shown in UI)</div>
-            <div className="hr" />
-
-            <div className="list">
-              {metricDefs.map((m) => (
-                <div key={m.key} className="card">
-                  <div className="small">Key: <InlineCode>{m.key}</InlineCode></div>
-                  <div className="split" style={{ marginTop: 8 }}>
-                    <label className="card">
-                      <div className="small">Label</div>
-                      <input
-                        value={m.label}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          saveUi({
-                            ...uiConfig,
-                            metricDefinitions: uiConfig.metricDefinitions.map((x) =>
-                              x.key === m.key ? { ...x, label: next } : x,
-                            ),
-                          });
-                          setDraft(JSON.stringify({ ...uiConfig, metricDefinitions: uiConfig.metricDefinitions.map((x) => x.key === m.key ? { ...x, label: next } : x)}, null, 2));
-                        }}
-                        style={{ width: "100%", marginTop: 8 }}
-                      />
-                    </label>
-                    <label className="card">
-                      <div className="small">Step</div>
-                      <input
-                        type="number"
-                        step={0.01}
-                        min={0.001}
-                        value={m.step}
-                        onChange={(e) => {
-                          const step = Math.max(0.001, Number(e.target.value) || 0.05);
-                          saveUi({
-                            ...uiConfig,
-                            metricDefinitions: uiConfig.metricDefinitions.map((x) =>
-                              x.key === m.key ? { ...x, step } : x,
-                            ),
-                          });
-                          setDraft(JSON.stringify({ ...uiConfig, metricDefinitions: uiConfig.metricDefinitions.map((x) => x.key === m.key ? { ...x, step } : x)}, null, 2));
-                        }}
-                        style={{ width: "100%", marginTop: 8 }}
-                      />
-                    </label>
-                  </div>
-
-                  <label className="card">
-                    <div className="small">Description</div>
-                    <input
-                      value={m.description ?? ""}
-                      onChange={(e) => {
-                        const description = e.target.value;
-                        saveUi({
-                          ...uiConfig,
-                          metricDefinitions: uiConfig.metricDefinitions.map((x) =>
-                            x.key === m.key ? { ...x, description } : x,
-                          ),
-                        });
-                        setDraft(JSON.stringify({ ...uiConfig, metricDefinitions: uiConfig.metricDefinitions.map((x) => x.key === m.key ? { ...x, description } : x)}, null, 2));
-                      }}
-                      style={{ width: "100%", marginTop: 8 }}
-                    />
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card" style={{ minHeight: 420 }}>
-            <div className="small">Class labels (UI only)</div>
-            <div className="hr" />
-
-            <div className="list" style={{ maxHeight: 500, overflow: "auto" }}>
-              {classMetaEntries.map(([k, meta]) => (
-                <div key={k} className="card">
-                  <div className="small">
-                    Key: <InlineCode>{k}</InlineCode>
-                  </div>
-                  <div className="split" style={{ marginTop: 8 }}>
-                    <label className="card">
-                      <div className="small">Label</div>
-                      <input
-                        value={meta.label ?? ""}
-                        onChange={(e) => {
-                          const label = e.target.value;
-                          saveUi({
-                            ...uiConfig,
-                            classMeta: {
-                              ...uiConfig.classMeta,
-                              [k]: { ...meta, key: k, label },
-                            },
-                          });
-                          setDraft(JSON.stringify({ ...uiConfig, classMeta: { ...uiConfig.classMeta, [k]: { ...meta, key: k, label }}}, null, 2));
-                        }}
-                        style={{ width: "100%", marginTop: 8 }}
-                      />
-                    </label>
-                    <label className="card">
-                      <div className="small">Icon</div>
-                      <input
-                        value={meta.icon ?? ""}
-                        onChange={(e) => {
-                          const icon = e.target.value;
-                          saveUi({
-                            ...uiConfig,
-                            classMeta: {
-                              ...uiConfig.classMeta,
-                              [k]: { ...meta, key: k, icon },
-                            },
-                          });
-                          setDraft(JSON.stringify({ ...uiConfig, classMeta: { ...uiConfig.classMeta, [k]: { ...meta, key: k, icon }}}, null, 2));
-                        }}
-                        style={{ width: "100%", marginTop: 8 }}
-                      />
-                    </label>
-                  </div>
-                </div>
-              ))}
-
-              {!classMetaEntries.length ? (
-                <div className="small">No class metadata yet. Add classes first.</div>
-              ) : null}
-            </div>
-          </div>
+      <div className="view-body">
+        <div className="hint">
+          UI semantics are stored locally in <InlineCode>localStorage</InlineCode>. They do not
+          change your routing JSON output.
         </div>
 
-        <div className="hr" />
+        <div className="section-title">Metrics</div>
+        <table className="table" aria-label="Metric labels">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Label</th>
+              <th>Step</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metricDefs.map((m) => (
+              <tr key={m.key}>
+                <td className="mono">{m.key}</td>
+                <td>
+                  <input
+                    value={m.label}
+                    onChange={(e) => {
+                      const next = {
+                        ...uiConfig,
+                        metricDefinitions: uiConfig.metricDefinitions.map((x) =>
+                          x.key === m.key ? { ...x, label: e.target.value } : x,
+                        ),
+                      };
+                      setAndPersist(next);
+                    }}
+                    className="input"
+                    aria-label={`Metric label: ${m.key}`}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    step={0.01}
+                    min={0.001}
+                    value={m.step}
+                    onChange={(e) => {
+                      const step = Math.max(0.001, Number(e.target.value) || 0.05);
+                      const next = {
+                        ...uiConfig,
+                        metricDefinitions: uiConfig.metricDefinitions.map((x) =>
+                          x.key === m.key ? { ...x, step } : x,
+                        ),
+                      };
+                      setAndPersist(next);
+                    }}
+                    className="input input-narrow"
+                    aria-label={`Metric step: ${m.key}`}
+                  />
+                </td>
+                <td>
+                  <input
+                    value={m.description ?? ""}
+                    onChange={(e) => {
+                      const next = {
+                        ...uiConfig,
+                        metricDefinitions: uiConfig.metricDefinitions.map((x) =>
+                          x.key === m.key ? { ...x, description: e.target.value } : x,
+                        ),
+                      };
+                      setAndPersist(next);
+                    }}
+                    className="input"
+                    aria-label={`Metric description: ${m.key}`}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-        <div className="card">
-          <div className="small">Advanced: import/export UI config</div>
-          <div className="small" style={{ marginTop: 6 }}>
-            You can share this config with your team (e.g. via git) without changing your routing file.
-          </div>
+        <div className="section-title">Class labels</div>
+        <table className="table" aria-label="Class labels">
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Label</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {classMetaEntries.map(([k, meta]) => (
+              <tr key={k}>
+                <td className="mono">{k}</td>
+                <td>
+                  <input
+                    value={meta.label ?? ""}
+                    onChange={(e) => {
+                      const next = {
+                        ...uiConfig,
+                        classMeta: {
+                          ...uiConfig.classMeta,
+                          [k]: { ...meta, key: k, label: e.target.value },
+                        },
+                      };
+                      setAndPersist(next);
+                    }}
+                    className="input"
+                    aria-label={`Class label: ${k}`}
+                  />
+                </td>
+                <td>
+                  <input
+                    value={meta.description ?? ""}
+                    onChange={(e) => {
+                      const next = {
+                        ...uiConfig,
+                        classMeta: {
+                          ...uiConfig.classMeta,
+                          [k]: { ...meta, key: k, description: e.target.value },
+                        },
+                      };
+                      setAndPersist(next);
+                    }}
+                    className="input"
+                    aria-label={`Class description: ${k}`}
+                  />
+                </td>
+              </tr>
+            ))}
+            {classMetaEntries.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="muted">
+                  No class labels yet.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
 
-          <div className="hr" />
-
-          {err ? (
-            <div className="card" style={{ borderColor: "rgba(255,107,107,0.5)" }}>
-              <div style={{ fontSize: 13 }}>
-                <strong>Invalid JSON:</strong> {err}
-              </div>
-            </div>
-          ) : null}
-
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            spellCheck={false}
-            style={{ width: "100%", minHeight: 240 }}
-          />
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
-            <SmallButton
-              onClick={() => {
-                try {
-                  const parsed = JSON.parse(draft) as RoutingUiConfig;
-                  if (!parsed.metricDefinitions || !parsed.classMeta) {
-                    throw new Error("Missing metricDefinitions or classMeta");
+        <details className="details-block">
+          <summary>Import / export</summary>
+          <div className="details-block-body">
+            {err ? <div className="callout callout-error">{err}</div> : null}
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              spellCheck={false}
+              className="textarea"
+              aria-label="UI semantics JSON"
+            />
+            <div className="row-actions">
+              <InlineAction
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(draft) as RoutingUiConfig;
+                    if (!parsed.metricDefinitions || !parsed.classMeta) {
+                      throw new Error("Missing metricDefinitions or classMeta");
+                    }
+                    setAndPersist(parsed, { silent: false });
+                    setErr(null);
+                  } catch (e) {
+                    setErr(e instanceof Error ? e.message : String(e));
                   }
-                  saveUi(parsed, { silent: false });
-                  setErr(null);
-                } catch (e) {
-                  setErr(e instanceof Error ? e.message : String(e));
-                }
-              }}
-            >
-              Apply
-            </SmallButton>
-            <SmallButton
-              onClick={() => {
-                saveUi(defaultUiConfig, { silent: false });
-                setDraft(JSON.stringify(defaultUiConfig, null, 2));
-                setErr(null);
-              }}
-              title="Reset UI config to defaults"
-            >
-              Reset
-            </SmallButton>
+                }}
+              >
+                Apply
+              </InlineAction>
+            </div>
           </div>
-        </div>
+        </details>
       </div>
-    </div>
+    </section>
   );
 }
+

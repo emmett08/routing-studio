@@ -81,10 +81,8 @@ export type ClassRule =
 
 export interface ClassMeta {
   key: string;
-  label: string;
+  label?: string;
   description?: string;
-  icon?: string;
-  rules?: ClassRule[];
 }
 
 export interface RoutingUiConfig {

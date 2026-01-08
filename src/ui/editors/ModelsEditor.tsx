@@ -1,9 +1,15 @@
-import React, { useMemo, useState } from "react";
-import type { RoutingFileV1, RoutingUiConfig } from "../../routing/types";
-import { Help, InlineCode, SectionTitle, SmallButton } from "../components";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { ModelInfo, RoutingFileV1, RoutingUiConfig } from "../../routing/types";
+import { InlineAction, InlineCode, ViewHeader } from "../components";
 
 function clamp(x: number, min: number, max: number) {
   return Math.max(min, Math.min(max, x));
+}
+
+function providerOf(modelId: string): string | null {
+  const idx = modelId.indexOf(":");
+  if (idx <= 0) return null;
+  return modelId.slice(0, idx);
 }
 
 function parseTags(text: string): string[] {
@@ -13,18 +19,38 @@ function parseTags(text: string): string[] {
     .filter(Boolean);
 }
 
+function createDefaultModel(): ModelInfo {
+  return {
+    reasoning: 0.5,
+    latency: 0.5,
+    cost: 0.5,
+    contextTokens: 128000,
+    tools: true,
+    vision: true,
+    tags: [],
+  };
+}
+
 export function ModelsEditor({
   routing,
   updateRouting,
   uiConfig,
+  focusModelId,
+  focusRequestId,
 }: {
   routing: RoutingFileV1;
   updateRouting: (mutate: (draft: RoutingFileV1) => void, opts?: { silent?: boolean }) => void;
   uiConfig: RoutingUiConfig;
+  focusModelId?: string;
+  focusRequestId?: number;
 }) {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [newId, setNewId] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const addInputRef = useRef<HTMLInputElement | null>(null);
+  const idInputRef = useRef<HTMLInputElement | null>(null);
 
   const allIds = useMemo(() => Object.keys(routing.models ?? {}).sort(), [routing.models]);
 
@@ -43,109 +69,138 @@ export function ModelsEditor({
 
   const metricDefs = uiConfig.metricDefinitions ?? [];
 
+  useEffect(() => {
+    if (!focusRequestId || !focusModelId) return;
+
+    if (routing.models?.[focusModelId]) {
+      setSelected(focusModelId);
+      setAdding(false);
+      requestAnimationFrame(() => idInputRef.current?.focus());
+      return;
+    }
+
+    setAdding(true);
+    setNewId(focusModelId);
+    requestAnimationFrame(() => addInputRef.current?.focus());
+  }, [focusModelId, focusRequestId, routing.models]);
+
   return (
-    <div className="panel">
-      <SectionTitle
-        title="Models"
-        subtitle="Model registry used for scoring, tags, and discoverable class suggestions."
-        right={
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              value={newId}
-              onChange={(e) => setNewId(e.target.value)}
-              placeholder="new model id (provider:model)"
-              style={{ width: 280 }}
-            />
-            <SmallButton
+    <section className="view" aria-label="Models">
+      <ViewHeader title="Models" subtitle="Model registry for scoring, tags, and validation." />
+
+      <div className="view-body">
+        <div className="add-row">
+          {!adding ? (
+            <InlineAction
               onClick={() => {
-                const id = newId.trim();
-                if (!id) return;
-                updateRouting((d) => {
-                  d.models ??= {};
-                  if (d.models[id]) return;
-                  d.models[id] = {
-                    reasoning: 0.5,
-                    latency: 0.5,
-                    cost: 0.5,
-                    contextTokens: 128000,
-                    tools: true,
-                    vision: true,
-                    tags: [],
-                  };
-                });
-                setSelected(id);
-                setNewId("");
+                setAdding(true);
+                requestAnimationFrame(() => addInputRef.current?.focus());
               }}
             >
-              Add model
-            </SmallButton>
-          </div>
-        }
-      />
-      <div className="body">
-        <Help>
-          <div>
-            A model id is typically <InlineCode>provider:model</InlineCode> (e.g.{" "}
-            <InlineCode>openai:gpt-5.1</InlineCode>). Classes refer to these ids.
-          </div>
-        </Help>
-
-        <div className="hr" />
-
-        <div className="split">
-          <div className="card" style={{ minHeight: 420 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              + Add model
+            </InlineAction>
+          ) : (
+            <div className="add-inline">
               <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search models / tags…"
-                style={{ width: "100%" }}
+                ref={addInputRef}
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                placeholder="new model id (provider:model)"
+                className="input"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const id = newId.trim();
+                  if (!id) return;
+                  updateRouting((d) => {
+                    d.models ??= {};
+                    if (d.models[id]) return;
+                    d.models[id] = createDefaultModel();
+                  });
+                  setSelected(id);
+                  setNewId("");
+                  setAdding(false);
+                }}
+                aria-label="New model id"
               />
+              <InlineAction
+                onClick={() => {
+                  setAdding(false);
+                  setNewId("");
+                }}
+              >
+                Cancel
+              </InlineAction>
             </div>
+          )}
+        </div>
 
-            <div className="hr" />
+        <div className="hint">
+          Model ids are typically <InlineCode>provider:model</InlineCode> (e.g.{" "}
+          <InlineCode>openai:gpt-5.1</InlineCode>). Classes reference these ids.
+        </div>
 
-            <div className="list" style={{ maxHeight: 430, overflow: "auto" }}>
+        <div className="split-pane">
+          <section className="pane" aria-label="Model list">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search models / tags…"
+              className="input"
+              aria-label="Search models"
+            />
+
+            <div className="list" role="listbox" aria-label="Models">
               {filtered.map((id) => {
                 const m = routing.models[id];
                 const isSel = id === currentId;
+                const provider = providerOf(id) ?? "";
+                const caps = [
+                  m.tools ? "tools" : null,
+                  m.vision ? "vision" : null,
+                ].filter(Boolean).join(", ");
+                const ctx = Number.isFinite(Number(m.contextTokens))
+                  ? `${Math.round(Number(m.contextTokens) / 1000)}k`
+                  : "";
+                const right = [caps, ctx].filter(Boolean).join(" • ");
                 return (
                   <button
                     key={id}
+                    type="button"
+                    className="list-item"
                     onClick={() => setSelected(id)}
                     aria-current={isSel ? "page" : undefined}
-                    style={{ justifyContent: "flex-start", gap: 10 }}
+                    role="option"
+                    aria-selected={isSel}
                   >
-                    <span className="mono" style={{ fontSize: 12 }}>
-                      {id}
-                    </span>
-                    <span style={{ flex: 1 }} />
-                    <span className="pill">{(m.tags ?? []).length} tags</span>
+                    <div className="list-item-title">
+                      <span className="mono">{id}</span>
+                      {provider ? <span className="muted">({provider})</span> : null}
+                    </div>
+                    {right ? <div className="list-item-meta muted">{right}</div> : null}
                   </button>
                 );
               })}
-              {!filtered.length ? <div className="small">No matches.</div> : null}
+              {filtered.length === 0 ? <div className="muted">No matches.</div> : null}
             </div>
-          </div>
+          </section>
 
-          <div className="card" style={{ minHeight: 420 }}>
+          <section className="pane" aria-label="Model details">
             {!currentId || !current ? (
-              <div className="small">Select a model to edit.</div>
+              <div className="empty-state">Select a model to edit.</div>
             ) : (
-              <div className="list">
-                <div>
-                  <div className="small">Model id</div>
+              <div className="details">
+                <label className="field">
+                  <div className="field-label">Model id</div>
                   <input
+                    ref={idInputRef}
                     value={currentId}
                     onChange={(e) => {
                       const nextId = e.target.value.trim();
-                      if (!nextId) return;
-                      if (nextId === currentId) return;
+                      if (!nextId || nextId === currentId) return;
                       updateRouting((d) => {
                         if (d.models[nextId]) return;
                         d.models[nextId] = d.models[currentId]!;
                         delete d.models[currentId];
-                        // Update references in classes and legacy map
                         for (const cls of Object.keys(d.classes ?? {})) {
                           d.classes[cls] = (d.classes[cls] ?? []).map((x) => (x === currentId ? nextId : x));
                         }
@@ -157,64 +212,78 @@ export function ModelsEditor({
                       });
                       setSelected(nextId);
                     }}
-                    className="mono"
-                    style={{ width: "100%" }}
+                    className="input mono"
+                    aria-label="Model id"
                   />
-                </div>
+                </label>
 
-                <div className="hr" />
-
-                {metricDefs.map((def) => {
-                  const key = def.key as keyof typeof current;
-                  const valRaw = Number((current as any)[key]);
-                  const val = Number.isFinite(valRaw) ? valRaw : 0;
-                  return (
-                    <div key={def.key}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                        <div>
-                          <div className="small">{def.label}</div>
-                          {def.description ? <div className="small">{def.description}</div> : null}
+                <details className="details-block">
+                  <summary>Metrics</summary>
+                  <div className="details-block-body">
+                    {metricDefs.map((def) => {
+                      const key = def.key as keyof typeof current;
+                      const valRaw = Number((current as any)[key]);
+                      const val = Number.isFinite(valRaw) ? valRaw : 0;
+                      return (
+                        <div key={def.key} className="metric-row">
+                          <div className="metric-text">
+                            <div className="field-label">{def.label}</div>
+                            {def.description ? <div className="muted">{def.description}</div> : null}
+                          </div>
+                          <div className="metric-controls">
+                            <input
+                              type="number"
+                              step={def.step}
+                              min={def.min}
+                              max={def.max}
+                              value={val}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                updateRouting(
+                                  (d) => {
+                                    (d.models[currentId] as any)[def.key] = clamp(
+                                      Number.isFinite(v) ? v : 0,
+                                      def.min,
+                                      def.max,
+                                    );
+                                  },
+                                  { silent: true },
+                                );
+                              }}
+                              className="input input-narrow"
+                              aria-label={`${def.label} value`}
+                            />
+                            <input
+                              type="range"
+                              min={def.min}
+                              max={def.max}
+                              step={def.step}
+                              value={val}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                updateRouting(
+                                  (d) => {
+                                    (d.models[currentId] as any)[def.key] = clamp(
+                                      Number.isFinite(v) ? v : 0,
+                                      def.min,
+                                      def.max,
+                                    );
+                                  },
+                                  { silent: true },
+                                );
+                              }}
+                              aria-label={`${def.label} slider`}
+                            />
+                          </div>
                         </div>
-                        <input
-                          type="number"
-                          step={def.step}
-                          min={def.min}
-                          max={def.max}
-                          value={val}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            updateRouting((d) => {
-                              (d.models[currentId] as any)[def.key] = clamp(Number.isFinite(v) ? v : 0, def.min, def.max);
-                            }, { silent: true });
-                          }}
-                          style={{ width: 110 }}
-                        />
-                      </div>
+                      );
+                    })}
+                  </div>
+                </details>
 
-                      <input
-                        type="range"
-                        min={def.min}
-                        max={def.max}
-                        step={def.step}
-                        value={val}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          updateRouting((d) => {
-                            (d.models[currentId] as any)[def.key] = clamp(Number.isFinite(v) ? v : 0, def.min, def.max);
-                          }, { silent: true });
-                        }}
-                        style={{ width: "100%", marginTop: 6 }}
-                        aria-label={`${def.label} slider for ${currentId}`}
-                      />
-                    </div>
-                  );
-                })}
-
-                <div className="hr" />
-
-                <div className="split">
-                  <label className="card">
-                    <div className="small">Context tokens</div>
+                <div className="form-grid">
+                  <label className="field">
+                    <div className="field-label">Context tokens</div>
                     <input
                       type="number"
                       min={0}
@@ -222,36 +291,45 @@ export function ModelsEditor({
                       value={Number(current.contextTokens)}
                       onChange={(e) => {
                         const v = Math.max(0, Math.trunc(Number(e.target.value) || 0));
-                        updateRouting((d) => {
-                          d.models[currentId]!.contextTokens = v;
-                        }, { silent: true });
+                        updateRouting(
+                          (d) => {
+                            d.models[currentId]!.contextTokens = v;
+                          },
+                          { silent: true },
+                        );
                       }}
-                      style={{ width: "100%", marginTop: 8 }}
+                      className="input"
                     />
                   </label>
 
-                  <div className="card" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div className="field">
+                    <div className="field-label">Capabilities</div>
+                    <label className="checkbox-row">
                       <input
                         type="checkbox"
                         checked={!!current.tools}
                         onChange={(e) =>
-                          updateRouting((d) => {
-                            d.models[currentId]!.tools = e.target.checked;
-                          }, { silent: true })
+                          updateRouting(
+                            (d) => {
+                              d.models[currentId]!.tools = e.target.checked;
+                            },
+                            { silent: true },
+                          )
                         }
                       />
                       <span>Tools</span>
                     </label>
-
-                    <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <label className="checkbox-row">
                       <input
                         type="checkbox"
                         checked={!!current.vision}
                         onChange={(e) =>
-                          updateRouting((d) => {
-                            d.models[currentId]!.vision = e.target.checked;
-                          }, { silent: true })
+                          updateRouting(
+                            (d) => {
+                              d.models[currentId]!.vision = e.target.checked;
+                            },
+                            { silent: true },
+                          )
                         }
                       />
                       <span>Vision</span>
@@ -259,30 +337,31 @@ export function ModelsEditor({
                   </div>
                 </div>
 
-                <div>
-                  <div className="small">Tags</div>
+                <label className="field">
+                  <div className="field-label">Tags</div>
                   <input
                     value={(current.tags ?? []).join(", ")}
                     onChange={(e) => {
                       const tags = Array.from(new Set(parseTags(e.target.value)));
-                      updateRouting((d) => {
-                        d.models[currentId]!.tags = tags;
-                      }, { silent: true });
+                      updateRouting(
+                        (d) => {
+                          d.models[currentId]!.tags = tags;
+                        },
+                        { silent: true },
+                      );
                     }}
-                    placeholder="tools, vision, frontier, fast, cheap…"
-                    style={{ width: "100%", marginTop: 8 }}
+                    placeholder="tools, vision, frontier, fast, cheap"
+                    className="input"
+                    aria-label="Tags"
                   />
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Tip: class suggestions can be driven by tags.
-                  </div>
-                </div>
+                </label>
 
-                <div className="hr" />
-
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <SmallButton
+                <div className="row-actions">
+                  <InlineAction
                     onClick={() => {
-                      const ok = confirm(`Delete model '${currentId}'? References in classes will remain, but become warnings.`);
+                      const ok = confirm(
+                        `Delete model '${currentId}'? References in classes will remain, but become warnings.`,
+                      );
                       if (!ok) return;
                       updateRouting((d) => {
                         delete d.models[currentId];
@@ -291,13 +370,13 @@ export function ModelsEditor({
                     }}
                   >
                     Delete model
-                  </SmallButton>
+                  </InlineAction>
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

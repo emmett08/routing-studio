@@ -8,6 +8,7 @@ export type SectionKey =
   | "classes"
   | "defaults"
   | "legacy"
+  | "rawJson"
   | "ui";
 
 export function Sidebar({
@@ -19,58 +20,47 @@ export function Sidebar({
   setSection: (s: SectionKey) => void;
   routing: RoutingFileV1;
 }) {
-  const counts = {
-    providers: Object.keys(routing.providers ?? {}).length,
-    models: Object.keys(routing.models ?? {}).length,
-    classes: Object.keys(routing.classes ?? {}).length,
-    legacy: Object.keys(routing.legacyPreferenceMap ?? {}).length,
-  };
+  const hasAdvanced =
+    Object.keys(routing.legacyPreferenceMap ?? {}).length > 0 ||
+    Object.keys(routing.providers ?? {}).length > 0 ||
+    Object.keys(routing.models ?? {}).length > 0;
 
-  const item = (key: SectionKey, label: string, right?: React.ReactNode) => (
+  const item = (key: SectionKey, label: string) => (
     <button
       key={key}
+      className="nav-item"
       onClick={() => setSection(key)}
       aria-current={section === key ? "page" : undefined}
+      type="button"
     >
-      <span>{label}</span>
-      <span className="pill">{right}</span>
+      {label}
     </button>
   );
 
   return (
-    <div className="panel">
-      <header>
-        <h3>Navigation</h3>
-        <span className="muted">Edit sections</span>
-      </header>
-      <div className="body">
-        <div className="nav" role="navigation" aria-label="Routing file sections">
-          {item("overview", "Overview")}
-          {item("providers", "Providers", counts.providers)}
-          {item("models", "Models", counts.models)}
-          {item("classes", "Classes", counts.classes)}
-          {item("defaults", "Defaults")}
-          {item("legacy", "Legacy map", counts.legacy)}
-          {item("ui", "UI config")}
-        </div>
-
-        <div className="hr" />
-
-        <div className="small">
-          Tips:
-          <ul>
-            <li>
-              <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>O</kbd> open
-            </li>
-            <li>
-              <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>S</kbd> download
-            </li>
-            <li>
-              <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd> undo
-            </li>
-          </ul>
-        </div>
+    <nav className="nav" aria-label="Routing Studio navigation">
+      <div className="nav-group" aria-label="Primary">
+        {item("overview", "Overview")}
+        {item("providers", "Providers")}
+        {item("models", "Models")}
+        {item("classes", "Classes")}
+        {item("defaults", "Defaults")}
       </div>
-    </div>
+
+      <details className="nav-advanced">
+        <summary className="nav-summary">Advanced</summary>
+        <div className="nav-group" aria-label="Advanced">
+          {item("legacy", "Legacy map")}
+          {item("rawJson", "Raw JSON")}
+          {item("ui", "UI semantics")}
+        </div>
+      </details>
+
+      {!hasAdvanced ? (
+        <div className="nav-hint">
+          Advanced contains raw JSON and legacy tooling.
+        </div>
+      ) : null}
+    </nav>
   );
 }

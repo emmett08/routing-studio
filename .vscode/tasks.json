@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: build",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: watch:webview",
+      "type": "npm",
+      "script": "watch:webview",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$tsc-watch",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "vite v",
+          "endsPattern": "built in|watching for file changes"
+        }
+      }
+    },
+    {
+      "label": "npm: watch:extension",
+      "type": "npm",
+      "script": "watch:extension",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$tsc-watch",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "esbuild:",
+          "endsPattern": "esbuild: watching for changes"
+        }
+      }
+    },
+    {
+      "label": "watch",
+      "dependsOn": ["npm: watch:webview", "npm: watch:extension"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

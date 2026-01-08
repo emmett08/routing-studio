@@ -1,73 +1,114 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
-export function Badge({
-  kind,
-  children,
-}: {
-  kind: "ok" | "warn" | "danger";
-  children: React.ReactNode;
-}) {
-  return <span className={`badge ${kind}`}>{children}</span>;
+export function InlineCode({ children }: { children: React.ReactNode }) {
+  return <span className="inline-code">{children}</span>;
 }
 
-export function SectionTitle({
+export function ViewHeader({
   title,
   subtitle,
-  right,
+  actions,
 }: {
   title: string;
   subtitle?: string;
-  right?: React.ReactNode;
+  actions?: React.ReactNode;
 }) {
   return (
-    <header>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-        <h2>{title}</h2>
-        {subtitle ? <div className="muted">{subtitle}</div> : null}
+    <header className="view-header">
+      <div className="view-header-text">
+        <h2 className="view-title">{title}</h2>
+        {subtitle ? <div className="view-subtitle">{subtitle}</div> : null}
       </div>
-      <div style={{ flex: 1 }} />
-      {right}
+      <div className="view-header-spacer" />
+      {actions ? <div className="view-actions">{actions}</div> : null}
     </header>
   );
 }
 
-export function Help({
-  children,
-  tone = "info",
+export function InlineAction(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button {...props} type={props.type ?? "button"} className={`inline-action ${props.className ?? ""}`} />;
+}
+
+export type OverflowMenuItem = {
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+};
+
+export function OverflowMenu({
+  items,
+  ariaLabel = "More actions",
 }: {
-  children: React.ReactNode;
-  tone?: "info" | "warn";
+  items: OverflowMenuItem[];
+  ariaLabel?: string;
 }) {
-  const border = tone === "warn" ? "rgba(255,209,102,0.45)" : "rgba(147,197,253,0.35)";
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const enabledItems = useMemo(() => items.filter((i) => i.label.trim().length > 0), [items]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (menuRef.current?.contains(t)) return;
+      if (btnRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onMouseDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [open]);
+
+  if (enabledItems.length === 0) return null;
+
   return (
-    <div className="card" style={{ borderColor: border }}>
-      <div className="small">{children}</div>
+    <div className="menu">
+      <button
+        ref={btnRef}
+        type="button"
+        className="button button-secondary"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((v) => !v)}
+      >
+        …
+      </button>
+      {open ? (
+        <div ref={menuRef} className="menu-popover" role="menu">
+          {enabledItems.map((item, idx) => (
+            <button
+              key={`${item.label}-${idx}`}
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
-  );
-}
-
-export function InlineCode({ children }: { children: React.ReactNode }) {
-  return <span className="mono" style={{ fontSize: 12 }}>{children}</span>;
-}
-
-export function SmallButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      {...props}
-      style={{
-        padding: "6px 10px",
-        borderRadius: 10,
-        ...(props.style ?? {}),
-      }}
-    />
-  );
-}
-
-export function IconPill({ icon, text }: { icon: string; text: string }) {
-  return (
-    <span className="pill">
-      <span aria-hidden="true">{icon}</span>
-      <span>{text}</span>
-    </span>
   );
 }
